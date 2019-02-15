@@ -5,7 +5,7 @@ class KlarnaShoppingButton {
     private $baseUrl = "https://api.playground.klarna.com";
     function generateButtonKey(){
         $client = new GuzzleHttp\Client();
-            $res = $client->request('POST', $this->baseUrl.'/instantshopping/v1/buttons',['auth' => ['PK04149_9ef50d19b0e3', 'S3Pl4Di5ovDw0711'], 'json' => [
+            $res = $client->request('POST', $this->baseUrl.'/instantshopping/v1/buttons',['auth' => ['PK04xxxd19b0e3', 'S3Pl4xxxx711'], 'json' => [
                 "merchant_urls" => [
                     "terms"=> "https://wwww.example.com/terms",
                     "notification" => "https://wwww.example.com/notify",
