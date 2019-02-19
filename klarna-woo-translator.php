@@ -53,5 +53,22 @@ class KlarnaWooTranslator{
         };
         return $klarnaOrderLines;
     }
+    function getgeto(){
+       $adress= array(
+            'first_name' => '111Joe',
+            'last_name'  => 'Conlin',
+            'company'    => 'Speed Society',
+            'email'      => 'joe@testing.com',
+            'phone'      => '760-555-1212',
+            'address_1'  => '123 Main st.',
+            'address_2'  => '104',
+            'city'       => 'San Diego',
+            'state'      => 'Ca',
+            'postcode'   => '92121',
+            'country'    => 'US'
+        );
+        return $adress;
+    }
+   
 }
 ?>
