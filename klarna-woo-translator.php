@@ -1,16 +1,19 @@
 <?php 
 class KlarnaWooTranslator{
     function GetWCLineItemsFromKlarnaOrder($klarnaOrder){
+        echo "about to get orderlines";
+        
         $newlineitems = array();
-        foreach($klarnaOrder["order_lines"] as $orderline){
-            if($orderline["type"] != "shipping_fee"){
+        foreach($klarnaOrder->order_lines as $orderline){
+            echo "getting X orderline";
+            if($orderline->type != "shipping_fee"){
             $newlineitems[] = array(
-                "name" =>$orderline["name"],
-                "product_id" => json_decode($orderline["merchant_data"])->prod_id,
+                "name" =>$orderline->name,
+                "product_id" => json_decode($orderline->merchant_data)->prod_id,
                 //"variation_id" => json_decode($orderline["merchant_data"])->variation_id,
-               "quantity" => $orderline["quantity"],
-               "price" => (int)($orderline["unit_price"] / 100),
-               "sku" => $orderline["reference"]
+               "quantity" => $orderline->quantity,
+               "price" => (int)($orderline->unit_price / 100),
+               "sku" => $orderline->reference
             );
         }
         }
@@ -56,20 +59,17 @@ class KlarnaWooTranslator{
     function GetWooAdressFromKlarnaOrder($klarnaOrder){
         
        $adress= array(
-            'first_name' => '111Joe',
-            'last_name'  => 'Conlin',
-            'company'    => 'Speed Society',
-            'email'      => 'joe@testing.com',
-            'phone'      => '760-555-1212',
-            'address_1'  => '123 Main st.',
-            'address_2'  => '104',
-            'city'       => 'San Diego',
-            'state'      => 'Ca',
-            'postcode'   => '92121',
-            'country'    => 'US'
+            'first_name' => $klarnaOrder->billing_address->given_name,
+            'last_name'  => $klarnaOrder->billing_address->family_name, 
+            'email'      => $klarnaOrder->billing_address->email,
+            'phone'      => $klarnaOrder->billing_address->phone,
+            'address_1'  => $klarnaOrder->billing_address->street_address,
+            'city'       => $klarnaOrder->billing_address->city,          
+            'postcode'   => $klarnaOrder->billing_address->postal_code,
+            'country'    => $klarnaOrder->billing_address->country,
         );
         return $adress;
     }
-   
+    
 }
 ?>

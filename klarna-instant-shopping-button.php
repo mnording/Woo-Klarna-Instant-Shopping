@@ -11,6 +11,9 @@ Domain Path: /languages
 */
 require 'vendor/autoload.php';
 require 'klarna-woo-translator.php';
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 class KlarnaShoppingButton {
     private $baseUrl = "https://api.playground.klarna.com";
     private $wooTranslate;
@@ -105,6 +108,7 @@ class KlarnaShoppingButton {
     }
     function InitAndRender(){
        $button= "c85062dc-5e9d-4209-a6ab-ce1e26c3aac0"; /* $this->generateButtonKey(); */
+       $this->logger->debug( 'Rendering button with buttonId '.$button, $this->logContext );
        $this->enqueScripts();
        $this->renderButton($button);
        $this->InitiateButton();
@@ -113,7 +117,8 @@ class KlarnaShoppingButton {
         $client = new GuzzleHttp\Client();
         
         $res = $client->request('GET', $this->baseUrl.'/instantshopping/v1/authorizations/'.$authToken,['auth' => ['PK04149_9ef50d19b0e3', 'S3Pl4Di5ovDw0711']]);
-       
+        $this->logger->debug( 'Got order details from klarna ', $this->logContext );
+        $this->logger->debug( $res->getBody(), $this->logContext );
         return json_decode($res->getBody());
     }
 
@@ -126,7 +131,7 @@ class KlarnaShoppingButton {
         $klarnaorder = $this->GetOrderDetailsFromKlarna($req->authorization_token);
         $this->logger->debug( 'Got Klarna Order Details', $this->logContext );
         if($this->VerifyOrder($klarnaorder)){
-            echo "in verufy";
+            
            $WCOrderId =  $this->CreateWcOrder($klarnaorder);
            $this->logger->debug( 'Created WC order '.$WCOrderId, $this->logContext );
            $klarnaorder = $this->PlaceOrder($req->authorization_token,$klarnaorder);
@@ -161,7 +166,7 @@ class KlarnaShoppingButton {
         ['json'=>$order,'auth' => ['PK04149_9ef50d19b0e3', 'S3Pl4Di5ovDw0711']]);
         
         $order = json_decode($res->getBody());
-        return $order->order_id;
+        return $order->order_id; 
     }
     function VerifyOrder($klarnaOrder){
         $this->verifyStockLevels();
@@ -197,6 +202,7 @@ echo "after getting orderlines";
                 $order->add_product( get_product($line["product_id"]), $line["quantity"]); 
                }
                 $order->set_address( $address, 'billing' );
+                $order->set_address( $address, 'shipping' );
                 $order->calculate_totals();
                 $order->update_status("pending", 'Imported order', TRUE);  
         } catch (Exception $e) {
