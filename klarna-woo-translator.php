@@ -7,7 +7,7 @@ class KlarnaWooTranslator{
             $newlineitems[] = array(
                 "name" =>$orderline["name"],
                 "product_id" => json_decode($orderline["merchant_data"])->prod_id,
-                "variation_id" => json_decode($orderline["merchant_data"])->variation_id,
+                //"variation_id" => json_decode($orderline["merchant_data"])->variation_id,
                "quantity" => $orderline["quantity"],
                "price" => (int)($orderline["unit_price"] / 100),
                "sku" => $orderline["reference"]

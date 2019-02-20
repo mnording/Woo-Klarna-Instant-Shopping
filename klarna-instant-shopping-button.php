@@ -76,6 +76,7 @@ class KlarnaShoppingButton {
         "reference": "'.$product->get_sku().'",
         "name": "'.$product->get_name().'",
         "quantity": 1,
+        "merchant_data": "{\"prod_id\":'.$product->get_id().'}",
         "unit_price": '.intval($product->get_price()*100).',
         "tax_rate": 0,
         "total_amount": '.intval($product->get_price()*100).',
@@ -184,14 +185,17 @@ class KlarnaShoppingButton {
     function CreateWcOrder($klarnaOrderObject){
         //https://gist.github.com/stormwild/7f914183fc18458f6ab78e055538dcf0
         global $woocommerce;
-        
+        echo "in create wc";
         $address = $this->wooTranslate->GetWooAdressFromKlarnaOrder($klarnaOrderObject);
-       
+        echo "after getting adress";
+        $orderlines = $this->wooTranslate->GetWCLineItemsFromKlarnaOrder($klarnaOrderObject);
+echo "after getting orderlines";       
         // Now we create the order
         try {
                 $order = wc_create_order();
-               
-                $order->add_product( get_product('9'), 1); 
+               foreach($orderlines as $line){
+                $order->add_product( get_product($line["product_id"]), $line["quantity"]); 
+               }
                 $order->set_address( $address, 'billing' );
                 $order->calculate_totals();
                 $order->update_status("pending", 'Imported order', TRUE);  
