@@ -174,7 +174,11 @@ class KlarnaShoppingButton {
         
     }
     function UpdateWCOrder($orderid,   $klarnaId){
-      $order =   wc_update_order( array("order_id" => $orderid,"set_paid" =>true,"transaction_id" => $klarnaId, "payment_method"=>"Klarna"));
+      $order =  wc_get_order( $orderid);
+      $order->payment_complete($klarnaId);
+      $order->set_payment_method("kco");
+      $order->set_payment_method_title("Klarna");
+      $order->update_status("processing", 'Got Klarna OK', TRUE);  
       $order->save();
     }
     function CreateWcOrder($klarnaOrderObject){
