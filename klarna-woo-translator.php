@@ -53,7 +53,8 @@ class KlarnaWooTranslator{
         };
         return $klarnaOrderLines;
     }
-    function getgeto(){
+    function GetWooAdressFromKlarnaOrder($klarnaOrder){
+        
        $adress= array(
             'first_name' => '111Joe',
             'last_name'  => 'Conlin',

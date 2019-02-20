@@ -14,29 +14,36 @@ require 'klarna-woo-translator.php';
 class KlarnaShoppingButton {
     private $baseUrl = "https://api.playground.klarna.com";
     private $wooTranslate;
+    private $logContext;
+    private $logger;
     function __construct(){
-        $wooTranslate = new KlarnaWooTranslator();
+        $this->wooTranslate = new KlarnaWooTranslator();
+        add_action( 'woocommerce_init',  array($this,'init') ); 
         add_action("woocommerce_before_add_to_cart_form",array($this,'InitAndRender'));
         add_action( 'rest_api_init', function () {
-            register_rest_route( 'klarna-instant-shopping', '/order/', array(
+            register_rest_route( 'klarna-instant-shopping', '/place-order/', array(
               'methods' => 'POST',
-              'callback' => array($this,'HanleOrderPostBack'),
+              'callback' => array($this,'HandleOrderPostBack'),
             ) );
           } );
+    }
+    function init(){
+        $this->logger  = wc_get_logger();
+      $this->logContext = array( 'source' => 'woo-klarna-instant-shopping' );
     }
     function enqueScripts(){
         wp_enqueue_script("woo_klarna_instant-shopping","https://x.klarnacdn.net/instantshopping/lib/v1/lib.js");
     }
     function generateButtonKey(){
         $client = new GuzzleHttp\Client();
-            $res = $client->request('POST', $this->baseUrl.'/instantshopping/v1/buttons',['verify' => false,'auth' => ['PK04149_9ef50d19b0e3', 'S3Pl4Di5ovDw0711'], 'json' => [
+            $res = $client->request('POST', $this->baseUrl.'/instantshopping/v1/buttons',['verify' => true,'auth' => ['PK04149_9ef50d19b0e3', 'S3Pl4Di5ovDw0711'], 'json' => [
                 "merchant_urls" => [
-                    "terms"=> "https://wwww.example.com/terms",
-                    "notification" => "https://wwww.example.com/notify",
-                    "confirmation"=> "https://wwww.example.com/",
-                    "push"=> "https://wwww.example.com/push",
-                    "update"=> "https://wwww.example.com/place-order",
-                    "place_order"=> "https://wwww.example.com/place-order"
+                    "terms"=> "https://instantshopping.mnording.com/",
+                    "notification" => "https://instantshopping.mnording.com/notify",
+                    "confirmation"=> "https://instantshopping.mnording.com/",
+                    "push"=> "https://instantshopping.mnording.com/push",
+                    "update"=> "https://instantshopping.mnording.com/wp-json/klarna-instant-shopping/update",
+                    "place_order"=> "https://instantshopping.mnording.com/wp-json/klarna-instant-shopping/place-order"
                 ]
             ]]);
             echo $res->getBody();
@@ -96,26 +103,38 @@ class KlarnaShoppingButton {
         $prod->get_shipping_class_id();
     }
     function InitAndRender(){
-       $button= $this->generateButtonKey();
+       $button= "c85062dc-5e9d-4209-a6ab-ce1e26c3aac0"; /* $this->generateButtonKey(); */
        $this->enqueScripts();
        $this->renderButton($button);
        $this->InitiateButton();
     }
     function GetOrderDetailsFromKlarna($authToken){
         $client = new GuzzleHttp\Client();
-        $res = $client->request('GET', $this->baseUrl.'/instantshopping/v1/authorizations/'.$authToken);
-        echo $res->getBody();
+        
+        $res = $client->request('GET', $this->baseUrl.'/instantshopping/v1/authorizations/'.$authToken,['auth' => ['PK04149_9ef50d19b0e3', 'S3Pl4Di5ovDw0711']]);
+       
+        return json_decode($res->getBody());
     }
 
 
-    function HanleOrderPostBack($auth){
-        $klarnaorder = $this->GetOrderDetailsFromKlarna($auth);
+    function HandleOrderPostBack($request_data){
+        $this->logger->debug( 'Got postback with successfull auth ', $this->logContext );
+        $this->logger->debug($request_data->get_body(), $this->logContext );
+        $req = json_decode($request_data->get_body());
+
+        $klarnaorder = $this->GetOrderDetailsFromKlarna($req->authorization_token);
+        $this->logger->debug( 'Got Klarna Order Details', $this->logContext );
         if($this->VerifyOrder($klarnaorder)){
-            $this->CreateWcOrder($klarnaorder);
-            $this->PlaceOrder($auth);
+            echo "in verufy";
+           $WCOrderId =  $this->CreateWcOrder($klarnaorder);
+           $this->logger->debug( 'Created WC order '.$WCOrderId, $this->logContext );
+           $klarnaorder = $this->PlaceOrder($req->authorization_token,$klarnaorder);
+           $this->logger->debug( 'Created Klarna order '.$klarnaorder, $this->logContext );
+           $this->UpdateWCOrder($WCOrderId,$klarnaorder);
+            $this->logger->debug( 'Updated WC Order '.$WCOrderId.' with klarna order id '.$klarnaorder, $this->logContext );
         }
         else {
-            $this->DenyOrder($auth,"other","Could not place order");
+            $this->DenyOrder($req->authorization_token,"other","Could not place order");
         }
     }
     /*
@@ -131,35 +150,52 @@ class KlarnaShoppingButton {
         ['json'=>[
             "deny_code"=> $code, 
             "deny_message"=> $message]]);
-        echo $res->getBody();
+        
     }
 
     function PlaceOrder($auth,$order){
         $client = new GuzzleHttp\Client();
+        echo "befor placing order towards klarna";
         $res = $client->request('POST', $this->baseUrl.'/instantshopping/v1/authorizations/'.$auth.'/orders/',
-        ['json'=>$order]);
-        echo $res->getBody();
+        ['json'=>$order,'auth' => ['PK04149_9ef50d19b0e3', 'S3Pl4Di5ovDw0711']]);
         
+        $order = json_decode($res->getBody());
+        return $order->order_id;
     }
     function VerifyOrder($klarnaOrder){
         $this->verifyStockLevels();
         $this->verifyShipping();
+        return true;
+    }
+    function verifyStockLevels(){
+
+    }
+    function verifyShipping(){
+        
+    }
+    function UpdateWCOrder($orderid,   $klarnaId){
+      $order =   wc_update_order( array("order_id" => $orderid,"set_paid" =>true,"transaction_id" => $klarnaId, "payment_method"=>"Klarna"));
+      $order->save();
     }
     function CreateWcOrder($klarnaOrderObject){
         //https://gist.github.com/stormwild/7f914183fc18458f6ab78e055538dcf0
         global $woocommerce;
-
-        $address = $wooTranslate->GetWooAdressFromKlarnaOrder($klarnaOrderObject);
-
+        
+        $address = $this->wooTranslate->GetWooAdressFromKlarnaOrder($klarnaOrderObject);
+       
         // Now we create the order
-        $order = wc_create_order();
-
-        // The add_product() function below is located in /plugins/woocommerce/includes/abstracts/abstract_wc_order.php
-        $order->add_product( get_product('275962'), 1); // This is an existing SIMPLE product
-        $order->set_address( $address, 'billing' );
-        //
-        $order->calculate_totals();
-        $order->update_status("processing", 'Imported order', TRUE);  
+        try {
+                $order = wc_create_order();
+               
+                $order->add_product( get_product('9'), 1); 
+                $order->set_address( $address, 'billing' );
+                $order->calculate_totals();
+                $order->update_status("pending", 'Imported order', TRUE);  
+        } catch (Exception $e) {
+            echo 'Caught exception: ',  $e->getMessage(), "\n";
+        }
+        return $order->get_id();
+        
     }
     
 }
