@@ -63,9 +63,28 @@ class KlarnaShoppingButton {
     function InitiateButton(){
         global $product;
         $id = $product->get_id();
-
+        WC()->cart->empty_cart();
+        WC()->cart->add_to_cart( $id );
+        foreach(WC()->cart->get_cart() as $cartitem){
+            
+            $klarnaTaxAmount= ($cartitem["line_tax_data"]["subtotal"][1]);
+        }
         $image = wp_get_attachment_image_src( get_post_thumbnail_id( $id ), 'woocommerce_thumbnail' );
         $imageUlr = ($image[0]);
+        $productPrice = $product->get_price();
+        $shippingMethods = array();
+        foreach($this->GetShippingMethods($productPrice,"SE") as $methods){
+            $shippingMethods[] = array(
+                    "id"=> $methods["id"],
+                    "name"=> $methods["name"],
+                    "description"=> "",
+                    "price"=> intval(round($methods["price"])*100),
+                    "tax_amount"=> 0,
+                    "tax_rate"=> 0,
+                    "preselected"=> true,
+                    "shipping_method"=> "PickUpPoint");
+                };
+        $vat = $klarnaTaxAmount / ($productPrice-$klarnaTaxAmount);
         wp_add_inline_script('woo_klarna_instant-shopping','window.klarnaAsyncCallback = function () {
     Klarna.InstantShopping.load({
     "purchase_country": "SE",
@@ -81,22 +100,15 @@ class KlarnaShoppingButton {
         "quantity": 1,
         "merchant_data": "{\"prod_id\":'.$product->get_id().'}",
         "unit_price": '.intval($product->get_price()*100).',
-        "tax_rate": 0,
+        "tax_rate": '.intval($vat*10000).',
         "total_amount": '.intval($product->get_price()*100).',
         "total_discount_amount": 0,
-        "total_tax_amount": 0,
+        "total_tax_amount": '.intval($klarnaTaxAmount*100).',
         "image_url": "'.$imageUlr.'"
     }],
-    "shipping_options": [{
-        "id": "express",
-        "name": "EXPRESS 1-2 Days",
-        "description": "mandatory, helpful text, e.g. Delivery by 4:30 pm >",
-        "price": 100,
-        "tax_amount": 0,
-        "tax_rate": 0,
-        "preselected": true,
-        "shipping_method": "PickUpPoint"
-    }]
+    "shipping_options": 
+        '.json_encode($shippingMethods).'
+        
     }, function (response) {
         console.log("Klarna.InstantShopping.load callback with data:" + JSON.stringify(response))
     })
@@ -109,6 +121,7 @@ class KlarnaShoppingButton {
     function InitAndRender(){
        $button= "c85062dc-5e9d-4209-a6ab-ce1e26c3aac0"; /* $this->generateButtonKey(); */
        $this->logger->debug( 'Rendering button with buttonId '.$button, $this->logContext );
+       
        $this->enqueScripts();
        $this->renderButton($button);
        $this->InitiateButton();
@@ -178,6 +191,45 @@ class KlarnaShoppingButton {
     }
     function verifyShipping(){
         
+    }
+    function GetShippingMethods($amount,$country) {
+
+        $active_methods   = array();
+        $values = array ('country' => $country,
+                         'amount'  => $amount);
+    
+    
+        // Fake product number to get a filled card....
+        WC()->cart->add_to_cart('1');
+    
+        WC()->shipping->calculate_shipping($this->get_shipping_packages($values));
+        $shipping_methods = WC()->shipping->packages;
+    
+        foreach ($shipping_methods[0]['rates'] as $id => $shipping_method) {
+            $active_methods[] = array(  'id'        => $shipping_method->method_id,
+                                        'type'      => $shipping_method->method_id,
+                                        'provider'  => $shipping_method->method_id,
+                                        'name'      => $shipping_method->label,
+                                        'price'     => number_format($shipping_method->cost, 2, '.', ''));
+        }
+        return $active_methods;
+    }
+    function get_shipping_packages($value) {
+
+        // Packages array for storing 'carts'
+        $packages = array();
+        $packages[0]['contents']                = WC()->cart->cart_contents;
+        $packages[0]['contents_cost']           = $value['amount'];
+        $packages[0]['applied_coupons']         = WC()->session->applied_coupon;
+        $packages[0]['destination']['country']  = $value['country'];
+        $packages[0]['destination']['state']    = '';
+        $packages[0]['destination']['postcode'] = '';
+        $packages[0]['destination']['city']     = '';
+        $packages[0]['destination']['address']  = '';
+        $packages[0]['destination']['address_2']= '';
+    
+    
+        return apply_filters('woocommerce_cart_shipping_packages', $packages);
     }
     function UpdateWCOrder($orderid,   $klarnaId){
       $order =  wc_get_order( $orderid);
