@@ -5,14 +5,14 @@ class KlarnaWooTranslator{
         
         $newlineitems = array();
         foreach($klarnaOrder->order_lines as $orderline){
-            echo "getting X orderline";
+            
             if($orderline->type != "shipping_fee"){
             $newlineitems[] = array(
                 "name" =>$orderline->name,
                 "product_id" => json_decode($orderline->merchant_data)->prod_id,
                 //"variation_id" => json_decode($orderline["merchant_data"])->variation_id,
                "quantity" => $orderline->quantity,
-               "price" => (int)($orderline->unit_price / 100),
+               "price" => (int)($orderline->unit_price / 100)   ,
                "sku" => $orderline->reference
             );
         }
@@ -21,17 +21,19 @@ class KlarnaWooTranslator{
     }
     function GetWCShippingLinesFromKlarnaOrder($klarnaOrder){
         $newlineitems = array();
-        foreach($klarnaOrder["order_lines"] as $orderline){
-            if($orderline["type"] == "shipping_fee"){
+        
+        foreach($klarnaOrder->order_lines as $orderline){
+            
+            if($orderline->type == "shipping_fee"){
             $newlineitems[] = array(
-                "name" =>$orderline["name"],
-            "quantity" => $orderline["quantity"],
-            "price" => (int)($orderline["unit_price"] / 100),
-            "sku" => $orderline["reference"]
+                "name" =>$orderline->name,
+               "quantity" => $orderline->quantity,
+               "price" => (int)($orderline->unit_price / 100) - (int)($orderline->total_tax_amount / 100)   ,
+               "id" => $orderline->reference
             );
         }
         }
-        return $newlineitems;
+        return $newlineitems[0];
     }
     function ConvertWCOrderLineToKlarna($orderlines){
         foreach($orderlines as $cartitem ){
@@ -44,7 +46,7 @@ class KlarnaWooTranslator{
                     "quantity" => $cartitem["quantity"],
                     "quantity_unit" => "pc",
                     "unit_price" => $price,
-                    "tax_rate" => 2500,
+                    "tax_rate" => 2500, 
                     "total_amount" => $price*$cartitem["quantity"],
                     "total_tax_amount" => $vat*$cartitem["quantity"],
                     "merchant_data" => json_encode([

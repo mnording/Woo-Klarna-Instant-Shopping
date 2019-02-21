@@ -19,8 +19,12 @@ class KlarnaShoppingButton {
     private $wooTranslate;
     private $logContext;
     private $logger;
+    private $username;
+    private $pass;
     function __construct(){
         $this->wooTranslate = new KlarnaWooTranslator();
+        $this->username = "PK04149_9ef50d19b0e3";
+        $this->pass="S3Pl4Di5ovDw0711";
         add_action( 'woocommerce_init',  array($this,'init') ); 
         add_action("woocommerce_before_add_to_cart_form",array($this,'InitAndRender'));
         add_action( 'rest_api_init', function () {
@@ -39,7 +43,7 @@ class KlarnaShoppingButton {
     }
     function generateButtonKey(){
         $client = new GuzzleHttp\Client();
-            $res = $client->request('POST', $this->baseUrl.'/instantshopping/v1/buttons',['verify' => true,'auth' => ['PK04149_9ef50d19b0e3', 'S3Pl4Di5ovDw0711'], 'json' => [
+            $res = $client->request('POST', $this->baseUrl.'/instantshopping/v1/buttons',['verify' => true,'auth' => [$this->username, $this->pass], 'json' => [
                 "merchant_urls" => [
                     "terms"=> "https://instantshopping.mnording.com/",
                     "notification" => "https://instantshopping.mnording.com/notify",
@@ -72,19 +76,22 @@ class KlarnaShoppingButton {
         $image = wp_get_attachment_image_src( get_post_thumbnail_id( $id ), 'woocommerce_thumbnail' );
         $imageUlr = ($image[0]);
         $productPrice = $product->get_price();
+        $vat = $klarnaTaxAmount / ($productPrice-$klarnaTaxAmount);
         $shippingMethods = array();
+        
         foreach($this->GetShippingMethods($productPrice,"SE") as $methods){
+            $shippingPrice = intval(round($methods["price"])*100);
             $shippingMethods[] = array(
                     "id"=> $methods["id"],
                     "name"=> $methods["name"],
                     "description"=> "",
-                    "price"=> intval(round($methods["price"])*100),
-                    "tax_amount"=> 0,
-                    "tax_rate"=> 0,
+                    "price"=> $shippingPrice + intval($shippingPrice*$vat) ,
+                    "tax_amount"=> intval($shippingPrice*$vat),
+                    "tax_rate"=> intval($vat*10000),
                     "preselected"=> true,
                     "shipping_method"=> "PickUpPoint");
                 };
-        $vat = $klarnaTaxAmount / ($productPrice-$klarnaTaxAmount);
+        
         wp_add_inline_script('woo_klarna_instant-shopping','window.klarnaAsyncCallback = function () {
     Klarna.InstantShopping.load({
     "purchase_country": "SE",
@@ -129,7 +136,7 @@ class KlarnaShoppingButton {
     function GetOrderDetailsFromKlarna($authToken){
         $client = new GuzzleHttp\Client();
         
-        $res = $client->request('GET', $this->baseUrl.'/instantshopping/v1/authorizations/'.$authToken,['auth' => ['PK04149_9ef50d19b0e3', 'S3Pl4Di5ovDw0711']]);
+        $res = $client->request('GET', $this->baseUrl.'/instantshopping/v1/authorizations/'.$authToken,['auth' => [$this->username, $this->pass]]);
         $this->logger->debug( 'Got order details from klarna ', $this->logContext );
         $this->logger->debug( $res->getBody(), $this->logContext );
         return json_decode($res->getBody());
@@ -168,7 +175,7 @@ class KlarnaShoppingButton {
         $res = $client->request('DELETE', $this->baseUrl.'/instantshopping/v1/authorizations/'.$auth,
         ['json'=>[
             "deny_code"=> $code, 
-            "deny_message"=> $message]]);
+            "deny_message"=> $message],'auth' => [$this->username, $this->pass]]);
         
     }
 
@@ -176,7 +183,7 @@ class KlarnaShoppingButton {
         $client = new GuzzleHttp\Client();
         echo "befor placing order towards klarna";
         $res = $client->request('POST', $this->baseUrl.'/instantshopping/v1/authorizations/'.$auth.'/orders/',
-        ['json'=>$order,'auth' => ['PK04149_9ef50d19b0e3', 'S3Pl4Di5ovDw0711']]);
+        ['json'=>$order,'auth' => [$this->username, $this->pass]]);
         
         $order = json_decode($res->getBody());
         return $order->order_id; 
@@ -242,14 +249,25 @@ class KlarnaShoppingButton {
     function CreateWcOrder($klarnaOrderObject){
         //https://gist.github.com/stormwild/7f914183fc18458f6ab78e055538dcf0
         global $woocommerce;
-        echo "in create wc";
+        
         $address = $this->wooTranslate->GetWooAdressFromKlarnaOrder($klarnaOrderObject);
-        echo "after getting adress";
+        $this->logger->debug( 'Got address from klarna object ', $this->logContext );
+        $this->logger->debug( json_encode($address), $this->logContext );
         $orderlines = $this->wooTranslate->GetWCLineItemsFromKlarnaOrder($klarnaOrderObject);
-echo "after getting orderlines";       
+        $this->logger->debug( 'Got line items from klarna object ', $this->logContext );
+        $this->logger->debug( json_encode($orderlines), $this->logContext );
+        $shippinglines = $this->wooTranslate->GetWCShippingLinesFromKlarnaOrder($klarnaOrderObject);
+        $this->logger->debug( 'Got shipping lines from klarna object ', $this->logContext );      
+        $this->logger->debug( json_encode($shippinglines), $this->logContext );
         // Now we create the order
         try {
                 $order = wc_create_order();
+                $item = new WC_Order_Item_Shipping();
+
+                $item->set_method_title( $shippinglines["name"] ); 
+                $item->set_method_id( $shippinglines["id"] ); 
+                $item->set_total( $shippinglines["price"]);
+                $order->add_item( $item );
                foreach($orderlines as $line){
                 $order->add_product( get_product($line["product_id"]), $line["quantity"]); 
                }
