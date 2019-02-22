@@ -11,6 +11,7 @@ Domain Path: /languages
 */
 require 'vendor/autoload.php';
 require 'klarna-woo-translator.php';
+require 'woo-settings-page.php';
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -21,8 +22,10 @@ class KlarnaShoppingButton {
     private $logger;
     private $username;
     private $pass;
+    private $settingspage;
     function __construct(){
         $this->wooTranslate = new KlarnaWooTranslator();
+        $this->settingspage = new WooKlarnaInstantShoppingSettingsPage();
         $this->username = "PK04149_9ef50d19b0e3";
         $this->pass="S3Pl4Di5ovDw0711";
         add_action( 'woocommerce_init',  array($this,'init') ); 
@@ -33,7 +36,15 @@ class KlarnaShoppingButton {
               'callback' => array($this,'HandleOrderPostBack'),
             ) );
           } );
+
+          add_action('admin_menu', array($this,'CreateOptionsPage'));
+          
     }
+   
+        function CreateOptionsPage() {
+        add_options_page('Klarna Instant Shopping', 'Klarna Instant Shopping', 'manage_options', 'woo-klarna-instant-shopping', array($this->settingspage,'RenderKlarnaSettingsPage'));
+        }
+
     function init(){
         $this->logger  = wc_get_logger();
       $this->logContext = array( 'source' => 'woo-klarna-instant-shopping' );
@@ -45,12 +56,7 @@ class KlarnaShoppingButton {
         $client = new GuzzleHttp\Client();
             $res = $client->request('POST', $this->baseUrl.'/instantshopping/v1/buttons',['verify' => true,'auth' => [$this->username, $this->pass], 'json' => [
                 "merchant_urls" => [
-                    "terms"=> "https://instantshopping.mnording.com/",
-                    "notification" => "https://instantshopping.mnording.com/notify",
-                    "confirmation"=> "https://instantshopping.mnording.com/",
-                    "push"=> "https://instantshopping.mnording.com/push",
-                    "update"=> "https://instantshopping.mnording.com/wp-json/klarna-instant-shopping/update",
-                    "place_order"=> "https://instantshopping.mnording.com/wp-json/klarna-instant-shopping/place-order"
+                    "place_order"=> get_site_url()."/wp-json/klarna-instant-shopping/place-order"
                 ]
             ]]);
             echo $res->getBody();
@@ -95,10 +101,10 @@ class KlarnaShoppingButton {
         wp_add_inline_script('woo_klarna_instant-shopping','window.klarnaAsyncCallback = function () {
     Klarna.InstantShopping.load({
     "purchase_country": "SE",
-    "purchase_currency": "SEK",
+    "purchase_currency": "'.get_woocommerce_currency().'",
     "locale": "sv-se",
     "merchant_urls": {
-        "terms": "https://test.com"
+      "terms": "'.rtrim(get_permalink( woocommerce_get_page_id( "terms" ) ),'/').'",  
     },
     "order_lines": [{
         "type": "physical",
@@ -126,7 +132,7 @@ class KlarnaShoppingButton {
         $prod->get_shipping_class_id();
     }
     function InitAndRender(){
-       $button= "c85062dc-5e9d-4209-a6ab-ce1e26c3aac0"; /* $this->generateButtonKey(); */
+       $button= "050252a7-4c34-4c49-a9d7-f2ea9307d71a";// $this->generateButtonKey(); 
        $this->logger->debug( 'Rendering button with buttonId '.$button, $this->logContext );
        
        $this->enqueScripts();
@@ -154,10 +160,10 @@ class KlarnaShoppingButton {
             
            $WCOrderId =  $this->CreateWcOrder($klarnaorder);
            $this->logger->debug( 'Created WC order '.$WCOrderId, $this->logContext );
-           $klarnaorder = $this->PlaceOrder($req->authorization_token,$klarnaorder);
-           $this->logger->debug( 'Created Klarna order '.$klarnaorder, $this->logContext );
-           $this->UpdateWCOrder($WCOrderId,$klarnaorder);
-            $this->logger->debug( 'Updated WC Order '.$WCOrderId.' with klarna order id '.$klarnaorder, $this->logContext );
+           $klarnaorderID = $this->PlaceOrder($req->authorization_token,$klarnaorder);
+           $this->logger->debug( 'Created Klarna order '.$klarnaorderID, $this->logContext );
+           $this->UpdateWCOrder($WCOrderId,$klarnaorderID);
+            $this->logger->debug( 'Updated WC Order '.$WCOrderId.' with klarna order id '.$klarnaorderID, $this->logContext );
         }
         else {
             $this->DenyOrder($req->authorization_token,"other","Could not place order");
@@ -181,6 +187,9 @@ class KlarnaShoppingButton {
 
     function PlaceOrder($auth,$order){
         $client = new GuzzleHttp\Client();
+        $settings = get_option('woo-klarna-instant-shopping');
+       $order->merchant_urls->confirmation =get_permalink($settings["thankyoupage"]);
+       
         echo "befor placing order towards klarna";
         $res = $client->request('POST', $this->baseUrl.'/instantshopping/v1/authorizations/'.$auth.'/orders/',
         ['json'=>$order,'auth' => [$this->username, $this->pass]]);
@@ -189,14 +198,14 @@ class KlarnaShoppingButton {
         return $order->order_id; 
     }
     function VerifyOrder($klarnaOrder){
-        $this->verifyStockLevels();
-        $this->verifyShipping();
+        $this->verifyStockLevels($klarnaOrder);
+        $this->verifyShipping($klarnaOrder);
         return true;
     }
-    function verifyStockLevels(){
+    function verifyStockLevels($klarnaOrder){
 
     }
-    function verifyShipping(){
+    function verifyShipping($klarnaOrder){
         
     }
     function GetShippingMethods($amount,$country) {
