@@ -70,63 +70,87 @@ class KlarnaShoppingButton {
     function renderButton($buttonID){
         echo '<klarna-instant-shopping data-key="'.$buttonID.'" data-environment="playground" data-region="eu"></klarna-instant-shopping>';       
     }
+
     function InitiateButton(){
         global $product;
         $id = $product->get_id();
-        WC()->cart->empty_cart();
-        WC()->cart->add_to_cart( $id );
-        foreach(WC()->cart->get_cart() as $cartitem){
-            
-            $klarnaTaxAmount= ($cartitem["line_tax_data"]["subtotal"][1]);
-        }
         $image = wp_get_attachment_image_src( get_post_thumbnail_id( $id ), 'woocommerce_thumbnail' );
-        $imageUlr = ($image[0]);
-        $productPrice = $product->get_price();
-        $vat = $klarnaTaxAmount / ($productPrice-$klarnaTaxAmount);
-        $shippingMethods = array();
-        
-        foreach($this->GetShippingMethods($productPrice,"SE") as $methods){
-            $shippingPrice = intval(round($methods["price"])*100);
-            $shippingMethods[] = array(
-                    "id"=> $methods["id"],
-                    "name"=> $methods["name"],
-                    "description"=> "",
-                    "price"=> $shippingPrice + intval($shippingPrice*$vat) ,
-                    "tax_amount"=> intval($shippingPrice*$vat),
-                    "tax_rate"=> intval($vat*10000),
-                    "preselected"=> true,
-                    "shipping_method"=> "PickUpPoint");
-                };
-        
-        wp_add_inline_script('woo_klarna_instant-shopping','window.klarnaAsyncCallback = function () {
-    Klarna.InstantShopping.load({
-    "purchase_country": "SE",
-    "purchase_currency": "'.get_woocommerce_currency().'",
-    "locale": "sv-se",
-    "merchant_urls": {
-      "terms": "'.rtrim(get_permalink( woocommerce_get_page_id( "terms" ) ),'/').'",  
-    },
-    "order_lines": [{
-        "type": "physical",
-        "reference": "'.$product->get_sku().'",
-        "name": "'.$product->get_name().'",
-        "quantity": 1,
-        "merchant_data": "{\"prod_id\":'.$product->get_id().'}",
-        "unit_price": '.intval($product->get_price()*100).',
-        "tax_rate": '.intval($vat*10000).',
-        "total_amount": '.intval($product->get_price()*100).',
-        "total_discount_amount": 0,
-        "total_tax_amount": '.intval($klarnaTaxAmount*100).',
-        "image_url": "'.$imageUlr.'"
-    }],
-    "shipping_options": 
-        '.json_encode($shippingMethods).'
-        
-    }, function (response) {
-        console.log("Klarna.InstantShopping.load callback with data:" + JSON.stringify(response))
-    })
-};','before');
-            
+                $imageUlr = ($image[0]);
+                $productPrice = $product->get_price();
+                WC()->cart->empty_cart();
+                WC()->cart->add_to_cart( $id );
+                foreach(WC()->cart->get_cart() as $cartitem){
+                    
+                    $klarnaTaxAmount= ($cartitem["line_tax_data"]["subtotal"][1]);
+                }
+                $vat = $klarnaTaxAmount / ($productPrice-$klarnaTaxAmount);
+                $shippingMethods = $this->GetShippingMethodsFroKlarna($productPrice,$vat);
+        if($product->get_type() == "simple"){
+               
+                
+                
+                
+                wp_add_inline_script('woo_klarna_instant-shopping','window.klarnaAsyncCallback = function () {
+                    Klarna.InstantShopping.load({
+                    "purchase_country": "SE",
+                    "purchase_currency": "'.get_woocommerce_currency().'",
+                    "locale": "sv-se",
+                    "merchant_urls": {
+                    "terms": "'.rtrim(get_permalink( woocommerce_get_page_id( "terms" ) ),'/').'",  
+                    },
+                    "order_lines": [{
+                        "type": "physical",
+                        "reference": "'.$product->get_sku().'",
+                        "name": "'.$product->get_name().'",
+                        "quantity": 1,
+                        "merchant_data": "{\"prod_id\":'.$product->get_id().'}",
+                        "unit_price": '.intval($product->get_price()*100).',
+                        "tax_rate": '.intval($vat*10000).',
+                        "total_amount": '.intval($product->get_price()*100).',
+                        "total_discount_amount": 0,
+                        "total_tax_amount": '.intval($klarnaTaxAmount*100).',
+                        "image_url": "'.$imageUlr.'"
+                    }],
+                    "shipping_options": 
+                        '.json_encode($shippingMethods).'
+                        
+                    }, function (response) {
+                        console.log("Klarna.InstantShopping.load callback with data:" + JSON.stringify(response))
+                    })
+                };','before');
+            } 
+            if($product->get_type() == "variable"){   
+            wp_add_inline_script('woo_klarna_instant-shopping','jQuery( ".single_variation_wrap" ).on( "show_variation", function ( event, variation ) {
+                console.log(variation);
+                
+                Klarna.InstantShopping.load({
+                    "purchase_country": "SE",
+                    "purchase_currency": "'.get_woocommerce_currency().'",
+                    "locale": "sv-se",
+                    "merchant_urls": {
+                    "terms": "'.rtrim(get_permalink( woocommerce_get_page_id( "terms" ) ),'/').'",  
+                    },
+                    "order_lines": [{
+                    "type": "physical",
+                    "reference": variation.sku,
+                    "name": "'.$product->get_name().'",
+                    "quantity": 1,
+                    "merchant_data": "{\"prod_id\":'.$product->get_id().',\"variation_id\":"+variation.variation_id+"}",
+                    "unit_price": variation.display_price*100,
+                    "tax_rate": 0,
+                    "total_amount": variation.display_price*100,
+                    "total_discount_amount": 0,
+                    "total_tax_amount": 0,
+                    "image_url": "'.$imageUlr.'"
+                }],
+                "shipping_options": 
+                        '.json_encode($shippingMethods).'
+                    
+                }, function (response) {
+                    console.log("Klarna.InstantShopping.load callback with data:" + JSON.stringify(response))
+                });
+            } );','after');
+            }    
     }
     function GetShippingOptionsForProduct($prod){
         $prod->get_shipping_class_id();
@@ -208,7 +232,23 @@ class KlarnaShoppingButton {
     function verifyShipping($klarnaOrder){
         
     }
-    function GetShippingMethods($amount,$country) {
+    function GetShippingMethodsFroKlarna($productPrice,$vat){
+        $shippingMethods=array();
+        foreach($this->GetShippingMethodsForAmount($productPrice,"SE") as $methods){
+            $shippingPrice = intval(round($methods["price"])*100);
+            $shippingMethods[] = array(
+                    "id"=> $methods["id"],
+                    "name"=> $methods["name"],
+                    "description"=> "",
+                    "price"=> $shippingPrice + intval($shippingPrice*$vat) ,
+                    "tax_amount"=> intval($shippingPrice*$vat),
+                    "tax_rate"=> intval($vat*10000),
+                    "preselected"=> true,
+                    "shipping_method"=> "PickUpPoint");
+                };
+                return $shippingMethods;
+    }
+    function GetShippingMethodsForAmount($amount,$country) {
 
         $active_methods   = array();
         $values = array ('country' => $country,
@@ -278,7 +318,28 @@ class KlarnaShoppingButton {
                 $item->set_total( $shippinglines["price"]);
                 $order->add_item( $item );
                foreach($orderlines as $line){
-                $order->add_product( get_product($line["product_id"]), $line["quantity"]); 
+                   if($line["variation_id"]){
+                    $membershipProduct = new WC_Product_Variable($line["product_id"]);
+                    $theMemberships = $membershipProduct->get_available_variations();
+                    
+                    $variationsArray = array();
+                    
+                    foreach ($theMemberships as $membership) {
+                        if ($membership['variation_id'] == $line["variation_id"]) {
+                            $variationID = $membership['variation_id'];
+                            $variationsArray['variation'] = $membership['attributes'];
+                        }
+                    }
+                    
+                    if ($variationID) {
+                        $varProduct = new WC_Product_Variation($variationID);
+                        $order->add_product($varProduct, 1, $variationsArray);
+                    }
+                   }
+                   else {
+                    $order->add_product( get_product($line["product_id"]), $line["quantity"]); 
+                   }
+                
                }
                 $order->set_address( $address, 'billing' );
                 $order->set_address( $address, 'shipping' );

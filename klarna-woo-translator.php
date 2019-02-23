@@ -2,19 +2,23 @@
 class KlarnaWooTranslator{
     function GetWCLineItemsFromKlarnaOrder($klarnaOrder){
         echo "about to get orderlines";
-        
+        var_dump($klarnaOrder);
         $newlineitems = array();
         foreach($klarnaOrder->order_lines as $orderline){
             
             if($orderline->type != "shipping_fee"){
-            $newlineitems[] = array(
-                "name" =>$orderline->name,
-                "product_id" => json_decode($orderline->merchant_data)->prod_id,
-                //"variation_id" => json_decode($orderline["merchant_data"])->variation_id,
-               "quantity" => $orderline->quantity,
-               "price" => (int)($orderline->unit_price / 100)   ,
-               "sku" => $orderline->reference
-            );
+                $newline = array(
+                    "name" =>$orderline->name,
+                    "product_id" => json_decode($orderline->merchant_data)->prod_id,
+                   "quantity" => $orderline->quantity,
+                   "price" => (int)($orderline->unit_price / 100)   ,
+                   "sku" => $orderline->reference
+                );
+                if(json_decode($orderline->merchant_data)->variation_id){
+                    $newline["variation_id"] = json_decode($orderline->merchant_data)->variation_id;
+                }
+            $newlineitems[] = $newline;
+            
         }
         }
         return $newlineitems;
