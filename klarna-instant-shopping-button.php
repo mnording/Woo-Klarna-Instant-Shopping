@@ -126,7 +126,10 @@ class KlarnaShoppingButton {
         //TODO: Solve tax for variations
         wp_add_inline_script('woo_klarna_instant-shopping','jQuery( ".single_variation_wrap" ).on( "show_variation", function ( event, variation ) {
             console.log(variation);
-            
+            var extraprodname = "";
+            for (var key in variation.attributes) {
+                extraprodname += variation.attributes[key]+" ";
+            }
             Klarna.InstantShopping.load({
                 "purchase_country": "SE",
                 "purchase_currency": "'.get_woocommerce_currency().'",
@@ -137,7 +140,7 @@ class KlarnaShoppingButton {
                 "order_lines": [{
                 "type": "physical",
                 "reference": variation.sku,
-                "name": "'.$product->get_name().'",
+                "name": "'.$product->get_name().' "+extraprodname,
                 "quantity": 1,
                 "merchant_data": "{\"prod_id\":'.$product->get_id().',\"variation_id\":"+variation.variation_id+"}",
                 "unit_price": variation.display_price*100,
