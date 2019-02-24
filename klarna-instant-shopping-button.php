@@ -26,8 +26,8 @@ class KlarnaShoppingButton {
     function __construct(){
         $this->wooTranslate = new KlarnaWooTranslator();
         $this->settingspage = new WooKlarnaInstantShoppingSettingsPage();
-        $this->username = "PK04149_9ef50d19b0e3";
-        $this->pass="S3Pl4Di5ovDw0711";
+        $this->username = $this->settingspage->getmid();
+        $this->pass=$this->settingspage->getpass();
         add_action( 'woocommerce_init',  array($this,'init') ); 
         add_action("woocommerce_before_add_to_cart_form",array($this,'InitAndRender'));
         add_action( 'rest_api_init', function () {
@@ -68,7 +68,9 @@ class KlarnaShoppingButton {
             return $buttonID;
     }
     function renderButton($buttonID){
-        echo '<klarna-instant-shopping data-key="'.$buttonID.'" data-environment="playground" data-region="eu"></klarna-instant-shopping>';       
+        $testmode = $this->settingspage->getTestmode();
+        $enviournment = $testmode ?"playground": "production";
+        echo '<klarna-instant-shopping data-key="'.$buttonID.'" data-environment="'.$enviournment.'" data-region="eu"></klarna-instant-shopping>';       
     }
 
     function InitiateButton(){
@@ -188,9 +190,10 @@ class KlarnaShoppingButton {
         $this->logger->debug( 'Got Klarna Order Details', $this->logContext );
         if($this->VerifyOrder($klarnaorder)){
             
-           $WCOrderId =  $this->CreateWcOrder($klarnaorder);
+           $WCOrder =  $this->CreateWcOrder($klarnaorder);
+           $WCOrderId = $WCOrder->get_id();
            $this->logger->debug( 'Created WC order '.$WCOrderId, $this->logContext );
-           $klarnaorderID = $this->PlaceOrder($req->authorization_token,$klarnaorder);
+           $klarnaorderID = $this->PlaceOrder($req->authorization_token,$klarnaorder,$WCOrder);
            $this->logger->debug( 'Created Klarna order '.$klarnaorderID, $this->logContext );
            $this->UpdateWCOrder($WCOrderId,$klarnaorderID);
             $this->logger->debug( 'Updated WC Order '.$WCOrderId.' with klarna order id '.$klarnaorderID, $this->logContext );
@@ -215,10 +218,11 @@ class KlarnaShoppingButton {
         
     }
 
-    function PlaceOrder($auth,$order){
+    function PlaceOrder($auth,$order,$wcorder){
         $client = new GuzzleHttp\Client();
-        $settings = get_option('woo-klarna-instant-shopping');
-       $order->merchant_urls->confirmation =get_permalink($settings["thankyoupage"]);
+       
+        $wcorderUrl = $wcorder->get_checkout_order_received_url();
+       $order->merchant_urls->confirmation = $wcorderUrl;
        
         echo "befor placing order towards klarna";
         $res = $client->request('POST', $this->baseUrl.'/instantshopping/v1/authorizations/'.$auth.'/orders/',
@@ -354,7 +358,7 @@ class KlarnaShoppingButton {
         } catch (Exception $e) {
             echo 'Caught exception: ',  $e->getMessage(), "\n";
         }
-        return $order->get_id();
+        return $order;
         
     }
     

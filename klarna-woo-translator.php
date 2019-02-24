@@ -2,7 +2,7 @@
 class KlarnaWooTranslator{
     function GetWCLineItemsFromKlarnaOrder($klarnaOrder){
         echo "about to get orderlines";
-        var_dump($klarnaOrder);
+       
         $newlineitems = array();
         foreach($klarnaOrder->order_lines as $orderline){
             
@@ -24,10 +24,8 @@ class KlarnaWooTranslator{
         return $newlineitems;
     }
     function GetWCShippingLinesFromKlarnaOrder($klarnaOrder){
-        $newlineitems = array();
-        
-        foreach($klarnaOrder->order_lines as $orderline){
-            
+        $newlineitems = array(); 
+        foreach($klarnaOrder->order_lines as $orderline){           
             if($orderline->type == "shipping_fee"){
             $newlineitems[] = array(
                 "name" =>$orderline->name,
