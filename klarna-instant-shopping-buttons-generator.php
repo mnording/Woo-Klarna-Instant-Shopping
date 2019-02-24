@@ -15,7 +15,9 @@ class ButtonGenerator{
                 "merchant_urls" => [
                     "place_order"=> get_site_url()."/wp-json/klarna-instant-shopping/place-order"
                 ]
-            ]]);
+                ],'headers' => [
+        'User-Agent' => 'Mnording Instant Shopping WP-Plugin',
+    ]]);
             echo $res->getBody();
             $buttonUrl =  $res->getHeader('Location')[0];
             $matches = array();

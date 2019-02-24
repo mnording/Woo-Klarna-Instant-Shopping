@@ -23,6 +23,7 @@ class KlarnaShoppingButton {
     private $username;
     private $pass;
     private $settingspage;
+    //TODO: Add logger with optional debug
     function __construct(){
         $this->wooTranslate = new KlarnaWooTranslator();
         $this->settingspage = new WooKlarnaInstantShoppingSettingsPage();
@@ -45,7 +46,7 @@ class KlarnaShoppingButton {
         function CreateOptionsPage() {
         add_options_page('Klarna Instant Shopping', 'Klarna Instant Shopping', 'manage_options', 'woo-klarna-instant-shopping', array($this->settingspage,'RenderKlarnaSettingsPage'));
         }
-
+    
     function init(){
         $this->logger  = wc_get_logger();
       $this->logContext = array( 'source' => 'woo-klarna-instant-shopping' );
@@ -161,7 +162,9 @@ class KlarnaShoppingButton {
     function GetOrderDetailsFromKlarna($authToken){
         $client = new GuzzleHttp\Client();
         
-        $res = $client->request('GET', $this->baseUrl.'/instantshopping/v1/authorizations/'.$authToken,['auth' => [$this->username, $this->pass]]);
+        $res = $client->request('GET', $this->baseUrl.'/instantshopping/v1/authorizations/'.$authToken,['auth' => [$this->username, $this->pass],'headers' => [
+            'User-Agent' => 'Mnording Instant Shopping WP-Plugin',
+        ]]);
         $this->logger->debug( 'Got order details from klarna ', $this->logContext );
         $this->logger->debug( $res->getBody(), $this->logContext );
         return json_decode($res->getBody());
@@ -201,7 +204,9 @@ class KlarnaShoppingButton {
         $res = $client->request('DELETE', $this->baseUrl.'/instantshopping/v1/authorizations/'.$auth,
         ['json'=>[
             "deny_code"=> $code, 
-            "deny_message"=> $message],'auth' => [$this->username, $this->pass]]);
+            "deny_message"=> $message],'headers' => [
+                'User-Agent' => 'Mnording Instant Shopping WP-Plugin',
+            ],'auth' => [$this->username, $this->pass]]);
         
     }
 
@@ -213,7 +218,9 @@ class KlarnaShoppingButton {
        
         echo "befor placing order towards klarna";
         $res = $client->request('POST', $this->baseUrl.'/instantshopping/v1/authorizations/'.$auth.'/orders/',
-        ['json'=>$order,'auth' => [$this->username, $this->pass]]);
+        ['json'=>$order,'headers' => [
+            'User-Agent' => 'Mnording Instant Shopping WP-Plugin',
+        ],'auth' => [$this->username, $this->pass]]);
         
         $order = json_decode($res->getBody());
         return $order->order_id; 
