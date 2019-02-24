@@ -16,7 +16,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 class KlarnaShoppingButton {
-    private $baseUrl = "https://api.playground.klarna.com";
+    private $baseUrl;
     private $wooTranslate;
     private $logContext;
     private $logger;
@@ -28,6 +28,7 @@ class KlarnaShoppingButton {
         $this->settingspage = new WooKlarnaInstantShoppingSettingsPage();
         $this->username = $this->settingspage->getmid();
         $this->pass=$this->settingspage->getpass();
+        $this->baseUrl = $this->settingspage->getBaseUrl();
         add_action( 'woocommerce_init',  array($this,'init') ); 
         add_action("woocommerce_before_add_to_cart_form",array($this,'InitAndRender'));
         add_action( 'rest_api_init', function () {
@@ -52,21 +53,7 @@ class KlarnaShoppingButton {
     function enqueScripts(){
         wp_enqueue_script("woo_klarna_instant-shopping","https://x.klarnacdn.net/instantshopping/lib/v1/lib.js");
     }
-    function generateButtonKey(){
-        $client = new GuzzleHttp\Client();
-            $res = $client->request('POST', $this->baseUrl.'/instantshopping/v1/buttons',['verify' => true,'auth' => [$this->username, $this->pass], 'json' => [
-                "merchant_urls" => [
-                    "place_order"=> get_site_url()."/wp-json/klarna-instant-shopping/place-order"
-                ]
-            ]]);
-            echo $res->getBody();
-            $buttonUrl =  $res->getHeader('Location')[0];
-            $matches = array();
-            
-            preg_match('/.*\/buttons\/([a-z0-9-]*)/', $buttonUrl, $matches);
-            $buttonID = $matches[1];
-            return $buttonID;
-    }
+    
     function renderButton($buttonID){
         $testmode = $this->settingspage->getTestmode();
         $enviournment = $testmode ?"playground": "production";
@@ -164,7 +151,7 @@ class KlarnaShoppingButton {
         $prod->get_shipping_class_id();
     }
     function InitAndRender(){
-       $button= "050252a7-4c34-4c49-a9d7-f2ea9307d71a";// $this->generateButtonKey(); 
+       $button= get_option("woo-klarna-instant-shopping-buttonid");// $this->generateButtonKey(); 
        $this->logger->debug( 'Rendering button with buttonId '.$button, $this->logContext );
        
        $this->enqueScripts();
