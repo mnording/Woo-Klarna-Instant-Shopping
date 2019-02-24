@@ -12,6 +12,7 @@ Domain Path: /languages
 require 'vendor/autoload.php';
 require 'klarna-woo-translator.php';
 require 'woo-settings-page.php';
+require 'klarna-instant-shopping-logger.php';
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -48,8 +49,7 @@ class KlarnaShoppingButton {
         }
     
     function init(){
-        $this->logger  = wc_get_logger();
-      $this->logContext = array( 'source' => 'woo-klarna-instant-shopping' );
+        $this->logger  = new KlarnaInstantShoppingLogger($this->settingspage->shouldLogDebug(),wc_get_logger());
     }
     function enqueScripts(){
         wp_enqueue_script("woo_klarna_instant-shopping","https://x.klarnacdn.net/instantshopping/lib/v1/lib.js");
@@ -153,7 +153,7 @@ class KlarnaShoppingButton {
     }
     function InitAndRender(){
        $button= get_option("woo-klarna-instant-shopping-buttonid");// $this->generateButtonKey(); 
-       $this->logger->debug( 'Rendering button with buttonId '.$button, $this->logContext );
+       $this->logger->logDebug( 'Rendering button with buttonId '.$button);
        
        $this->enqueScripts();
        $this->renderButton($button);
@@ -165,28 +165,28 @@ class KlarnaShoppingButton {
         $res = $client->request('GET', $this->baseUrl.'/instantshopping/v1/authorizations/'.$authToken,['auth' => [$this->username, $this->pass],'headers' => [
             'User-Agent' => 'Mnording Instant Shopping WP-Plugin',
         ]]);
-        $this->logger->debug( 'Got order details from klarna ', $this->logContext );
-        $this->logger->debug( $res->getBody(), $this->logContext );
+        $this->logger->logDebug( 'Got order details from klarna ' );
+        $this->logger->logDebug( $res->getBody() );
         return json_decode($res->getBody());
     }
 
 
     function HandleOrderPostBack($request_data){
-        $this->logger->debug( 'Got postback with successfull auth ', $this->logContext );
-        $this->logger->debug($request_data->get_body(), $this->logContext );
+        $this->logger->logDebug( 'Got postback with successfull auth ');
+        $this->logger->logDebug($request_data->get_body());
         $req = json_decode($request_data->get_body());
 
         $klarnaorder = $this->GetOrderDetailsFromKlarna($req->authorization_token);
-        $this->logger->debug( 'Got Klarna Order Details', $this->logContext );
+        $this->logger->logDebug( 'Got Klarna Order Details' );
         if($this->VerifyOrder($klarnaorder)){
             
            $WCOrder =  $this->CreateWcOrder($klarnaorder);
            $WCOrderId = $WCOrder->get_id();
-           $this->logger->debug( 'Created WC order '.$WCOrderId, $this->logContext );
+           $this->logger->logDebug( 'Created WC order '.$WCOrderId);
            $klarnaorderID = $this->PlaceOrder($req->authorization_token,$klarnaorder,$WCOrder);
-           $this->logger->debug( 'Created Klarna order '.$klarnaorderID, $this->logContext );
+           $this->logger->logDebug( 'Created Klarna order '.$klarnaorderID );
            $this->UpdateWCOrder($WCOrderId,$klarnaorderID);
-            $this->logger->debug( 'Updated WC Order '.$WCOrderId.' with klarna order id '.$klarnaorderID, $this->logContext );
+            $this->logger->logDebug( 'Updated WC Order '.$WCOrderId.' with klarna order id '.$klarnaorderID);
         }
         else {
             $this->DenyOrder($req->authorization_token,"other","Could not place order");
@@ -304,14 +304,14 @@ class KlarnaShoppingButton {
         global $woocommerce;
         
         $address = $this->wooTranslate->GetWooAdressFromKlarnaOrder($klarnaOrderObject);
-        $this->logger->debug( 'Got address from klarna object ', $this->logContext );
-        $this->logger->debug( json_encode($address), $this->logContext );
+        $this->logger->logDebug( 'Got address from klarna object ');
+        $this->logger->logDebug( json_encode($address), $this->logContext );
         $orderlines = $this->wooTranslate->GetWCLineItemsFromKlarnaOrder($klarnaOrderObject);
-        $this->logger->debug( 'Got line items from klarna object ', $this->logContext );
-        $this->logger->debug( json_encode($orderlines), $this->logContext );
+        $this->logger->logDebug( 'Got line items from klarna object ');
+        $this->logger->logDebug( json_encode($orderlines), $this->logContext );
         $shippinglines = $this->wooTranslate->GetWCShippingLinesFromKlarnaOrder($klarnaOrderObject);
-        $this->logger->debug( 'Got shipping lines from klarna object ', $this->logContext );      
-        $this->logger->debug( json_encode($shippinglines), $this->logContext );
+        $this->logger->logDebug( 'Got shipping lines from klarna object ' );      
+        $this->logger->logDebug( json_encode($shippinglines));
         // Now we create the order
         try {
                 $order = wc_create_order();

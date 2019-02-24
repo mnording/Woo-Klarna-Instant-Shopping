@@ -45,6 +45,10 @@ class WooKlarnaInstantShoppingSettingsPage {
         $testmode = get_option("woo-klarna-instant-shopping");
         return isset($testmode["testmode"]);
     }
+    function shouldLogDebug(){
+       $options =  get_option("woo-klarna-instant-shopping");
+        return isset($options["logdebug"]);
+    }
     function RenderKlarnaSettingsPage() {
             ?>
             <div>
@@ -81,6 +85,7 @@ class WooKlarnaInstantShoppingSettingsPage {
             register_setting( 'woo-klarna-instant-shopping', 'woo-klarna-instant-shopping', 'plugin_options_validate' );
             add_settings_section('plugin_main', 'Main Settings', array($this,'plugin_section_text'), 'woo-klarna-instant-shopping');
             add_settings_field('testmode', 'Testmode enabled', function() { $this->plugin_setting_checkbox("testmode"); }, 'woo-klarna-instant-shopping', 'plugin_main');
+            add_settings_field('logdebug', 'Log debug', function() { $this->plugin_setting_checkbox("logdebug"); }, 'woo-klarna-instant-shopping', 'plugin_main');
             add_settings_section('Buttons', 'Buttons', array($this,'listButtons'), 'woo-klarna-instant-shopping');
            }
            function listButtons(){
