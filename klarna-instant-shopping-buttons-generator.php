@@ -20,7 +20,7 @@ class ButtonGenerator
         ], 'headers' => [
             'User-Agent' => 'Mnording Instant Shopping WP-Plugin',
         ]]);
-        echo $res->getBody();
+
         $buttonUrl =  $res->getHeader('Location')[0];
         $matches = array();
 

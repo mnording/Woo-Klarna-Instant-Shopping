@@ -1,7 +1,7 @@
 <?php
  /*
 Plugin Name: Woo Klarna Instant Shopping
-Plugin URI: https://wordpress.org/plugins/woo-klarna-shopping/
+Plugin URI: https://github.com/mnording/Woo-Klarna-Instant-Shopping
 Description: Adds Klarna Instant shopping button to your product pages
 Version: 0.1.0
 Author: mnording10
@@ -13,8 +13,6 @@ require 'vendor/autoload.php';
 require 'klarna-woo-translator.php';
 require 'woo-settings-page.php';
 require 'klarna-instant-shopping-logger.php';
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 class KlarnaShoppingButton
 {
@@ -96,7 +94,7 @@ class KlarnaShoppingButton
             "purchase_currency": "' . get_woocommerce_currency() . '",
             "locale": "sv-se",
             "merchant_urls": {
-            "terms": "' . rtrim(get_permalink(woocommerce_get_page_id("terms")), '/') . '",  
+            "terms": "' . rtrim(get_permalink(woocommerce_get_page_id("terms")), '/') /* TODO: rtrim pending klarna fix*/ . '",  
             },
             "order_lines": [{
                 "type": "physical",
@@ -137,7 +135,7 @@ class KlarnaShoppingButton
                 "purchase_currency": "' . get_woocommerce_currency() . '",
                 "locale": "sv-se",
                 "merchant_urls": {
-                "terms": "' . rtrim(get_permalink(woocommerce_get_page_id("terms")), '/') . '",  
+                "terms": "' . rtrim(get_permalink(woocommerce_get_page_id("terms")), '/') /* TODO: rtrim pending klarna fix*/. '",  
                 },
                 "order_lines": [{
                 "type": "physical",
@@ -235,6 +233,7 @@ class KlarnaShoppingButton
                 'User-Agent' => 'Mnording Instant Shopping WP-Plugin',
             ], 'auth' => [$this->username, $this->pass]]
         );
+        $this->logger->logDebug("Deleted Klarna AuthToken " . $auth);
     }
 
     function PlaceOrder($auth, $order, $wcorder)
@@ -244,7 +243,7 @@ class KlarnaShoppingButton
         $wcorderUrl = $wcorder->get_checkout_order_received_url();
         $order->merchant_urls->confirmation = $wcorderUrl;
 
-        echo "befor placing order towards klarna";
+
         $res = $client->request(
             'POST',
             $this->baseUrl . '/instantshopping/v1/authorizations/' . $auth . '/orders/',
@@ -373,14 +372,16 @@ class KlarnaShoppingButton
         // Now we create the order
         try {
             $order = wc_create_order();
+            $this->logger->logDebug("Created WC  order");
             $item = new WC_Order_Item_Shipping();
-
+            $this->logger->logDebug("Adding shipping");
             $item->set_method_title($shippinglines["name"]);
             $item->set_method_id($shippinglines["id"]);
             $item->set_total($shippinglines["price"]);
             $order->add_item($item);
             foreach ($orderlines as $line) {
                 if ($line["variation_id"]) {
+                    $this->logger->logDebug("Creating variation order");
                     $membershipProduct = new WC_Product_Variable($line["product_id"]);
                     $theMemberships = $membershipProduct->get_available_variations();
 
@@ -392,8 +393,9 @@ class KlarnaShoppingButton
                             $variationsArray['variation'] = $membership['attributes'];
                         }
                     }
-
+                    $this->logger->logDebug("Looking for variation id " . $line["variation_id"]);
                     if ($variationID) {
+                        $this->logger->logDebug("Found variation with id " . $variationID);
                         $varProduct = new WC_Product_Variation($variationID);
                         $order->add_product($varProduct, 1, $variationsArray);
                     }
@@ -402,11 +404,12 @@ class KlarnaShoppingButton
                 }
             }
             $order->set_address($address, 'billing');
-            $order->set_address($address, 'shipping');
+            $order->set_address($address, 'shipping'); // TODO: Seperate shipping/billing?
             $order->calculate_totals();
             $order->update_status("pending", 'Imported order', true);
         } catch (Exception $e) {
-            echo 'Caught exception: ',  $e->getMessage(), "\n";
+            $this->logger->logError('Unable to create order');
+            $this->logger->logError('Caught exception: ',  $e->getMessage());
         }
         return $order;
     }
