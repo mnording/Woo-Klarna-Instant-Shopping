@@ -90,7 +90,6 @@ class KlarnaShoppingButton
         $location = WC_Geolocation::geolocate_ip();
         $country = $location['country'];
         wp_add_inline_script('woo_klarna_instant-shopping', 'window.klarnaAsyncCallback = function () {
-            alert("' . $country . '");
             Klarna.InstantShopping.load({
             "purchase_country": "' . $country . '",
             "purchase_currency": "' . get_woocommerce_currency() . '",
@@ -124,7 +123,6 @@ class KlarnaShoppingButton
         $location = WC_Geolocation::geolocate_ip();
         $country = $location['country'];
         wp_add_inline_script('woo_klarna_instant-shopping', 'jQuery( ".single_variation_wrap" ).on( "show_variation", function ( event, variation ) {
-            console.log(variation);
             if(variation.is_in_stock) {
             var priceEx = variation.display_price*100/(1+' . floatval($vat) . ');
             var taxamount = variation.display_price*100 - priceEx;
