@@ -3,8 +3,6 @@ class KlarnaWooTranslator
 {
     function GetWCLineItemsFromKlarnaOrder($klarnaOrder)
     {
-        echo "about to get orderlines";
-
         $newlineitems = array();
         foreach ($klarnaOrder->order_lines as $orderline) {
 

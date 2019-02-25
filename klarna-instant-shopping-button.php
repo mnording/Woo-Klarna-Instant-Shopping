@@ -13,7 +13,6 @@ require 'vendor/autoload.php';
 require 'klarna-woo-translator.php';
 require 'woo-settings-page.php';
 require 'klarna-instant-shopping-logger.php';
-error_reporting(E_ALL);
 class KlarnaShoppingButton
 {
     private $baseUrl;
@@ -88,11 +87,14 @@ class KlarnaShoppingButton
     }
     function LoadJSForSimple($product, $klarnaTaxAmount, $imageUlr, $vat, $shippingMethods)
     {
+        $location = WC_Geolocation::geolocate_ip();
+        $country = $location['country'];
         wp_add_inline_script('woo_klarna_instant-shopping', 'window.klarnaAsyncCallback = function () {
+            alert("' . $country . '");
             Klarna.InstantShopping.load({
-            "purchase_country": "SE",
+            "purchase_country": "' . $country . '",
             "purchase_currency": "' . get_woocommerce_currency() . '",
-            "locale": "sv-se",
+            "locale": "' . str_replace('_', '-', get_locale()) . '",
             "merchant_urls": {
             "terms": "' . rtrim(get_permalink(woocommerce_get_page_id("terms")), '/') /* TODO: rtrim pending klarna fix*/ . '",  
             },
@@ -119,8 +121,8 @@ class KlarnaShoppingButton
     }
     function LoadJsForVariable($product, $shippingMethods, $vat)
     {
-
-
+        $location = WC_Geolocation::geolocate_ip();
+        $country = $location['country'];
         wp_add_inline_script('woo_klarna_instant-shopping', 'jQuery( ".single_variation_wrap" ).on( "show_variation", function ( event, variation ) {
             console.log(variation);
             if(variation.is_in_stock) {
@@ -131,9 +133,9 @@ class KlarnaShoppingButton
                 extraprodname += variation.attributes[key]+" ";
             }
             Klarna.InstantShopping.load({
-                "purchase_country": "SE",
+                "purchase_country": "' . $country . '",
                 "purchase_currency": "' . get_woocommerce_currency() . '",
-                "locale": "sv-se",
+                "locale": "' . str_replace('_', '-', get_locale()) . '",
                 "merchant_urls": {
                 "terms": "' . rtrim(get_permalink(woocommerce_get_page_id("terms")), '/') /* TODO: rtrim pending klarna fix*/. '",  
                 },
