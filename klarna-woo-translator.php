@@ -78,4 +78,4 @@ class KlarnaWooTranslator
         return $adress;
     }
 }
- 
+ ?>

@@ -15,6 +15,7 @@ require 'woo-settings-page.php';
 require 'klarna-instant-shopping-logger.php';
 class KlarnaShoppingButton
 {
+    private $textdomain ="woo-klarna-instant-shopping";
     private $baseUrl;
     private $wooTranslate;
     private $logContext;
@@ -77,7 +78,7 @@ class KlarnaShoppingButton
             $klarnaTaxAmount = ($cartitem["line_tax_data"]["subtotal"][1]);
         }
         $vat = $klarnaTaxAmount / ($productPrice - $klarnaTaxAmount);
-        $shippingMethods = $this->GetShippingMethodsFroKlarna($productPrice, $vat);
+        $shippingMethods = $this->GetShippingMethodsForKlarna($productPrice, $vat);
         if ($product->get_type() == "simple") {
             $this->LoadJSForSimple($product, $klarnaTaxAmount, $imageUlr, $vat, $shippingMethods);
         }
@@ -184,7 +185,7 @@ class KlarnaShoppingButton
     {
         $client = new GuzzleHttp\Client();
 
-        $res = $client->request('GET', $this->baseUrl . '/instantshopping/v1/authorizations/' . $authToken, ['auth' => [$this->username, $this->pass], 'headers' => [
+        $res = $client->get( $this->baseUrl . '/instantshopping/v1/authorizations/' . $authToken, ['auth' => [$this->username, $this->pass], 'headers' => [
             'User-Agent' => 'Mnording Instant Shopping WP-Plugin',
         ]]);
         $this->logger->logDebug('Got order details from klarna ');
@@ -210,7 +211,7 @@ class KlarnaShoppingButton
             $this->UpdateWCOrder($WCOrderId, $klarnaorderID);
             $this->logger->logDebug('Updated WC Order ' . $WCOrderId . ' with klarna order id ' . $klarnaorderID);
         } else {
-            $this->DenyOrder($req->authorization_token, "other", "Could not place order");
+            $this->DenyOrder($req->authorization_token, "other", __("Could not place order",$this->textdomain));
         }
     }
     /*
@@ -223,8 +224,7 @@ class KlarnaShoppingButton
     function DenyOrder($auth, $code, $message)
     {
         $client = new GuzzleHttp\Client();
-        $res = $client->request(
-            'DELETE',
+        $res = $client->delete(
             $this->baseUrl . '/instantshopping/v1/authorizations/' . $auth,
             ['json' => [
                 "deny_code" => $code,
@@ -244,8 +244,7 @@ class KlarnaShoppingButton
         $order->merchant_urls->confirmation = $wcorderUrl;
 
 
-        $res = $client->request(
-            'POST',
+        $res = $client->post(
             $this->baseUrl . '/instantshopping/v1/authorizations/' . $auth . '/orders/',
             ['json' => $order, 'headers' => [
                 'User-Agent' => 'Mnording Instant Shopping WP-Plugin',
@@ -283,10 +282,12 @@ class KlarnaShoppingButton
     function verifyShipping($klarnaOrder)
     { //Verify that selected shipping is applicable
     }
-    function GetShippingMethodsFroKlarna($productPrice, $vat)
+    function GetShippingMethodsForKlarna($productPrice, $vat)
     {
         $shippingMethods = array();
-        foreach ($this->GetShippingMethodsForAmount($productPrice, "SE") as $methods) {
+        $location = WC_Geolocation::geolocate_ip();
+        $country = $location['country'];
+        foreach ($this->GetShippingMethodsForAmount($productPrice, $country) as $methods) {
             $shippingPrice = intval(round($methods["price"]) * 100);
             $shippingMethods[] = array(
                 "id" => $methods["id"],
@@ -415,3 +416,4 @@ class KlarnaShoppingButton
     }
 }
 $t = new KlarnaShoppingButton();
+?>

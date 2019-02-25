@@ -82,12 +82,10 @@ class WooKlarnaInstantShoppingSettingsPage
 }
 function CreateNewButton()
 {
-
     return $this->buttonGenerator->generateButtonKey();
 }
 function plugin_admin_init()
 {
-
     register_setting('woo-klarna-instant-shopping', 'woo-klarna-instant-shopping', 'plugin_options_validate');
     add_settings_section('plugin_main', 'Main Settings', array($this, 'plugin_section_text'), 'woo-klarna-instant-shopping');
     add_settings_field('testmode', 'Testmode enabled', function () {
@@ -143,4 +141,4 @@ function plugin_setting_selectpage($key)
     echo '</select>';
 }
 }
-?> 
+?>

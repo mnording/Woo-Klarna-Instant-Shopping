@@ -1,5 +1,5 @@
 {
     "require": {
-        "klarna/kco_rest": "^4.1"
+        "guzzlehttp/guzzle": "^6.3"
     }
 }
