@@ -125,6 +125,7 @@ class KlarnaShoppingButton
 
         wp_add_inline_script('woo_klarna_instant-shopping', 'jQuery( ".single_variation_wrap" ).on( "show_variation", function ( event, variation ) {
             console.log(variation);
+            if(variation.is_in_stock) {
             var priceEx = variation.display_price*100/(1+' . floatval($vat) . ');
             var taxamount = variation.display_price*100 - priceEx;
             var extraprodname = "";
@@ -157,6 +158,11 @@ class KlarnaShoppingButton
             }, function (response) {
                 console.log("Klarna.InstantShopping.load callback with data:" + JSON.stringify(response))
             });
+        }
+        else {
+            var getbbdom = document.getElementsByTagName("klarna-instant-shopping")[0];
+            getbbdom.innerHTML ="";
+        }
         } );', 'after');
     }
     function GetShippingOptionsForProduct($prod)
@@ -167,10 +173,14 @@ class KlarnaShoppingButton
     {
         $button = get_option("woo-klarna-instant-shopping-buttonid"); // $this->generateButtonKey(); 
         $this->logger->logDebug('Rendering button with buttonId ' . $button);
-
-        $this->enqueScripts();
-        $this->renderButton($button);
-        $this->InitiateButton();
+        global $product;
+        if ($product->get_stock_status() == "instock") {
+            $this->enqueScripts();
+            $this->renderButton($button);
+            $this->InitiateButton();
+        } else {
+            $this->logger->logDebug("Product Not in stock");
+        }
     }
     function GetOrderDetailsFromKlarna($authToken)
     {
@@ -254,9 +264,12 @@ class KlarnaShoppingButton
         return true;
     }
     function verifyStockLevels($klarnaOrder)
-    { }
+    {
+        //Verufy that we have enough in stock
+    }
     function verifyShipping($klarnaOrder)
-    { }
+    { //Verify that selected shipping is applicable
+    }
     function GetShippingMethodsFroKlarna($productPrice, $vat)
     {
         $shippingMethods = array();
