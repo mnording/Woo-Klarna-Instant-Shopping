@@ -25,7 +25,7 @@ class KlarnaShoppingButton
     private $username;
     private $pass;
     private $settingspage;
-    //TODO: Add logger with optional debug
+
     function __construct()
     {
         $this->wooTranslate = new KlarnaWooTranslator();
@@ -85,7 +85,7 @@ class KlarnaShoppingButton
             $this->LoadJSForSimple($product, $klarnaTaxAmount, $imageUlr, $vat, $shippingMethods);
         }
         if ($product->get_type() == "variable") {
-            $this->LoadJsForVariable($product, $shippingMethods);
+            $this->LoadJsForVariable($product, $shippingMethods, $vat);
         }
     }
     function LoadJSForSimple($product, $klarnaTaxAmount, $imageUlr, $vat, $shippingMethods)
@@ -119,11 +119,14 @@ class KlarnaShoppingButton
             })
         };', 'before');
     }
-    function LoadJsForVariable($product, $shippingMethods)
+    function LoadJsForVariable($product, $shippingMethods, $vat)
     {
-        //TODO: Solve tax for variations
+
+
         wp_add_inline_script('woo_klarna_instant-shopping', 'jQuery( ".single_variation_wrap" ).on( "show_variation", function ( event, variation ) {
             console.log(variation);
+            var priceEx = variation.display_price*100/(1+' . floatval($vat) . ');
+            var taxamount = variation.display_price*100 - priceEx;
             var extraprodname = "";
             for (var key in variation.attributes) {
                 extraprodname += variation.attributes[key]+" ";
@@ -142,10 +145,10 @@ class KlarnaShoppingButton
                 "quantity": 1,
                 "merchant_data": "{\"prod_id\":' . $product->get_id() . ',\"variation_id\":"+variation.variation_id+"}",
                 "unit_price": variation.display_price*100,
-                "tax_rate": 0,
+                "tax_rate": ' . intval($vat * 10000) . ',
                 "total_amount": variation.display_price*100,
                 "total_discount_amount": 0,
-                "total_tax_amount": 0,
+                "total_tax_amount": taxamount,
                 "image_url": variation.image.src
             }],
             "shipping_options": 
