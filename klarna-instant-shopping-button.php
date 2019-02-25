@@ -204,7 +204,6 @@ class KlarnaShoppingButton
         $klarnaorder = $this->GetOrderDetailsFromKlarna($req->authorization_token);
         $this->logger->logDebug('Got Klarna Order Details');
         if ($this->VerifyOrder($klarnaorder)) {
-
             $WCOrder =  $this->CreateWcOrder($klarnaorder);
             $WCOrderId = $WCOrder->get_id();
             $this->logger->logDebug('Created WC order ' . $WCOrderId);
@@ -259,13 +258,28 @@ class KlarnaShoppingButton
     }
     function VerifyOrder($klarnaOrder)
     {
-        $this->verifyStockLevels($klarnaOrder);
+        if (!$this->verifyStockLevels($klarnaOrder)) {
+            return false;
+        }
         $this->verifyShipping($klarnaOrder);
         return true;
     }
     function verifyStockLevels($klarnaOrder)
     {
-        //Verufy that we have enough in stock
+        foreach ($klarnaOrder->order_lines as $orderline) {
+            if ($orderline->type != "shipping_fee") {
+                $merchdata = json_decode($orderline->merchant_data);
+                $prodid = $merchdata->prod_id;
+                $prod = wc_get_product($prodid);
+                if ($merchdata->variation_id) {
+                    $prod = wc_get_product($merchdata->variation_id);
+                }
+                if (!$prod->is_in_stock()) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
     function verifyShipping($klarnaOrder)
     { //Verify that selected shipping is applicable
