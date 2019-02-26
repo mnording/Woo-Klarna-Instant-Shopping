@@ -10,3 +10,7 @@ Allowing you to display Klarna Instant Shopping buttons on Simple and Variable p
 * Upload to your wp-content/plugins folder
 * Activate from plugins dashboard
 
+# Screenshots
+
+![banner](assets/demoscreen.png)
+![banner](assets/demoscreen2.png)
