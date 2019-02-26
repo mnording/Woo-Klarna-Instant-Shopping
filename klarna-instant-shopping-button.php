@@ -1,5 +1,7 @@
 <?php
- /*
+
+use function GuzzleHttp\json_encode;
+/*
 Plugin Name: Woo Klarna Instant Shopping
 Plugin URI: https://github.com/mnording/Woo-Klarna-Instant-Shopping
 Description: Adds Klarna Instant shopping button to your product pages
@@ -9,13 +11,14 @@ Author URI: https://mnording.com
 Text Domain: woo-klarna-instant-shopping
 Domain Path: /languages
 */
+
 require 'vendor/autoload.php';
 require 'klarna-woo-translator.php';
 require 'woo-settings-page.php';
 require 'klarna-instant-shopping-logger.php';
 class KlarnaShoppingButton
 {
-    private $textdomain ="woo-klarna-instant-shopping";
+    private $textdomain = "woo-klarna-instant-shopping";
     private $baseUrl;
     private $wooTranslate;
     private $logContext;
@@ -23,7 +26,6 @@ class KlarnaShoppingButton
     private $username;
     private $pass;
     private $settingspage;
-
     function __construct()
     {
         $this->wooTranslate = new KlarnaWooTranslator();
@@ -39,15 +41,12 @@ class KlarnaShoppingButton
                 'callback' => array($this, 'HandleOrderPostBack'),
             ));
         });
-
         add_action('admin_menu', array($this, 'CreateOptionsPage'));
     }
-
     function CreateOptionsPage()
     {
         add_options_page('Klarna Instant Shopping', 'Klarna Instant Shopping', 'manage_options', 'woo-klarna-instant-shopping', array($this->settingspage, 'RenderKlarnaSettingsPage'));
     }
-
     function init()
     {
         $this->logger  = new KlarnaInstantShoppingLogger($this->settingspage->shouldLogDebug(), wc_get_logger());
@@ -63,7 +62,6 @@ class KlarnaShoppingButton
         $enviournment = $testmode ? "playground" : "production";
         echo '<klarna-instant-shopping data-key="' . $buttonID . '" data-environment="' . $enviournment . '" data-region="eu"></klarna-instant-shopping>';
     }
-
     function InitiateButton()
     {
         global $product;
@@ -185,7 +183,7 @@ class KlarnaShoppingButton
     {
         $client = new GuzzleHttp\Client();
 
-        $res = $client->get( $this->baseUrl . '/instantshopping/v1/authorizations/' . $authToken, ['auth' => [$this->username, $this->pass], 'headers' => [
+        $res = $client->get($this->baseUrl . '/instantshopping/v1/authorizations/' . $authToken, ['auth' => [$this->username, $this->pass], 'headers' => [
             'User-Agent' => 'Mnording Instant Shopping WP-Plugin',
         ]]);
         $this->logger->logDebug('Got order details from klarna ');
@@ -211,7 +209,7 @@ class KlarnaShoppingButton
             $this->UpdateWCOrder($WCOrderId, $klarnaorderID);
             $this->logger->logDebug('Updated WC Order ' . $WCOrderId . ' with klarna order id ' . $klarnaorderID);
         } else {
-            $this->DenyOrder($req->authorization_token, "other", __("Could not place order",$this->textdomain));
+            $this->DenyOrder($req->authorization_token, "other", __("Could not place order", $this->textdomain));
         }
     }
     /*
@@ -284,40 +282,46 @@ class KlarnaShoppingButton
     }
     function GetShippingMethodsForKlarna($productPrice, $vat)
     {
+        $lowestCost = 999999999;
+        $selectedIndex = 0;
         $shippingMethods = array();
         $location = WC_Geolocation::geolocate_ip();
         $country = $location['country'];
-        foreach ($this->GetShippingMethodsForAmount($productPrice, $country) as $methods) {
-            $shippingPrice = intval(round($methods["price"]) * 100);
+        foreach ($this->GetShippingMethodsForAmount($productPrice, $country) as $key => $methods) {
+            $this->logger->logDebug("Shipping price is " . $methods["price"]);
+            $shippingPriceInCents = $methods["price"] * 100;
+            $this->logger->logDebug("Shipping in cents price is " . $shippingPriceInCents);
+            if ($shippingPriceInCents < $lowestCost) {
+                $lowestCost = $shippingPriceInCents;
+                $selectedIndex = $key;
+            }
             $shippingMethods[] = array(
                 "id" => $methods["id"],
                 "name" => $methods["name"],
                 "description" => "",
-                "price" => $shippingPrice + intval($shippingPrice * $vat),
-                "tax_amount" => intval($shippingPrice * $vat),
+                "price" => $shippingPriceInCents + intval($shippingPriceInCents * $vat),
+                "tax_amount" => intval($shippingPriceInCents * $vat),
                 "tax_rate" => intval($vat * 10000),
-                "preselected" => true,
+                "preselected" => false,
                 "shipping_method" => "PickUpPoint"
             );
         };
+        $this->logger->logDebug("Lowest shipping was " . $lowestCost . " for index " . $selectedIndex);
+        $shippingMethods[$selectedIndex]["preselected"] = true;
+        $this->logger->logDebug(json_encode($shippingMethods));
         return $shippingMethods;
     }
     function GetShippingMethodsForAmount($amount, $country)
     {
-
         $active_methods   = array();
         $values = array(
             'country' => $country,
             'amount'  => $amount
         );
-
-
         // Fake product number to get a filled card....
         WC()->cart->add_to_cart('1');
-
         WC()->shipping->calculate_shipping($this->get_shipping_packages($values));
         $shipping_methods = WC()->shipping->packages;
-
         foreach ($shipping_methods[0]['rates'] as $id => $shipping_method) {
             $active_methods[] = array(
                 'id'        => $shipping_method->method_id,
@@ -331,7 +335,6 @@ class KlarnaShoppingButton
     }
     function get_shipping_packages($value)
     {
-
         // Packages array for storing 'carts'
         $packages = array();
         $packages[0]['contents']                = WC()->cart->cart_contents;
@@ -343,8 +346,6 @@ class KlarnaShoppingButton
         $packages[0]['destination']['city']     = '';
         $packages[0]['destination']['address']  = '';
         $packages[0]['destination']['address_2'] = '';
-
-
         return apply_filters('woocommerce_cart_shipping_packages', $packages);
     }
     function UpdateWCOrder($orderid,   $klarnaId)
@@ -358,9 +359,6 @@ class KlarnaShoppingButton
     }
     function CreateWcOrder($klarnaOrderObject)
     {
-        //https://gist.github.com/stormwild/7f914183fc18458f6ab78e055538dcf0
-        global $woocommerce;
-
         $address = $this->wooTranslate->GetWooAdressFromKlarnaOrder($klarnaOrderObject);
         $this->logger->logDebug('Got address from klarna object ');
         $this->logger->logDebug(json_encode($address), $this->logContext);
@@ -385,9 +383,7 @@ class KlarnaShoppingButton
                     $this->logger->logDebug("Creating variation order");
                     $membershipProduct = new WC_Product_Variable($line["product_id"]);
                     $theMemberships = $membershipProduct->get_available_variations();
-
                     $variationsArray = array();
-
                     foreach ($theMemberships as $membership) {
                         if ($membership['variation_id'] == $line["variation_id"]) {
                             $variationID = $membership['variation_id'];
@@ -416,4 +412,3 @@ class KlarnaShoppingButton
     }
 }
 $t = new KlarnaShoppingButton();
-?>
