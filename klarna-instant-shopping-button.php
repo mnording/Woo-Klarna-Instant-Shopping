@@ -1,7 +1,5 @@
 <?php
-
-use function GuzzleHttp\json_encode;
-/*
+ /*
 Plugin Name: Woo Klarna Instant Shopping
 Plugin URI: https://github.com/mnording/Woo-Klarna-Instant-Shopping
 Description: Adds Klarna Instant shopping button to your product pages
