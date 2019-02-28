@@ -13,4 +13,3 @@ Allowing you to display Klarna Instant Shopping buttons on Simple and Variable p
 # Screenshots
 
 ![banner](assets/demoscreen.png)
-![banner](assets/demoscreen2.png)

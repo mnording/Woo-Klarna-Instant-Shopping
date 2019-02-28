@@ -140,7 +140,7 @@ function plugin_setting_selectpage($key)
         $selected = ($options[$key] == $page->ID) ? "selected" : "";
         echo '<option ' . $selected . ' value="' . $page->ID . '">' . $page->post_title . '</option>';
     }
-    echo '</select>';
+    echo '</select> ';
 }
 }
 ?> 

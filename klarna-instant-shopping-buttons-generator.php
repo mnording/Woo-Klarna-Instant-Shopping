@@ -1,4 +1,6 @@
 <?php
+
+use function GuzzleHttp\json_decode;
 require 'vendor/autoload.php';
 class ButtonGenerator
 {
@@ -14,21 +16,18 @@ class ButtonGenerator
     function generateButtonKey()
     {
         $client = new \GuzzleHttp\Client();
-      
-        $res = $client->post( $this->baseUrl . '/instantshopping/v1/buttons', ['verify' => true, 'auth' => [$this->username, $this->pass], 'json' => [
+
+        $res = $client->post($this->baseUrl . '/instantshopping/v1/buttons', ['verify' => true, 'auth' => [$this->username, $this->pass], 'json' => [
             "merchant_urls" => [
                 "place_order" => get_site_url() . "/wp-json/klarna-instant-shopping/place-order"
             ]
         ], 'headers' => [
             'User-Agent' => 'Mnording Instant Shopping WP-Plugin',
         ]]);
-        $buttonUrl =  $res->getHeader('Location');
-       
-        $matches = array();
-
-        preg_match('/.*\/buttons\/([a-z0-9-]*)/', $buttonUrl, $matches);
-        $buttonID = $matches[1];
+        
+        $body=  $res->getBody();
+        $buttonID = json_decode($body)->id;
         return $buttonID;
     }
 }
-?>
+ 
