@@ -26,7 +26,7 @@ class ButtonGenerator
         ]]);
         
         $body=  $res->getBody();
-        $buttonID = json_decode($body)->id;
+        $buttonID = json_decode($body)->button_key;
         return $buttonID;
     }
 }
