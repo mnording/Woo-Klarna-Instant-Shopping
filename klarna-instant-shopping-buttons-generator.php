@@ -1,5 +1,4 @@
 <?php
-
 use function GuzzleHttp\json_decode;
 require 'vendor/autoload.php';
 class ButtonGenerator
@@ -29,5 +28,4 @@ class ButtonGenerator
         $buttonID = json_decode($body)->button_key;
         return $buttonID;
     }
-}
- 
+}?>

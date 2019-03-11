@@ -31,7 +31,7 @@ class KlarnaWooTranslator
                     "name" => $orderline->name,
                     "quantity" => $orderline->quantity,
                     "price" => (int)($orderline->unit_price / 100) - (int)($orderline->total_tax_amount / 100),
-                    "id" => $orderline->reference
+                    "instance_id" => $orderline->reference
                 );
             }
         }
@@ -77,5 +77,4 @@ class KlarnaWooTranslator
         );
         return $adress;
     }
-}
- ?>
+}?>

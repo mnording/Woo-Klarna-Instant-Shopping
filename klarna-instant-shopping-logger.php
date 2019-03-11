@@ -20,5 +20,4 @@ class KlarnaInstantShoppingLogger
     {
         $this->wclogger->error($message, $this->logContext);
     }
-}
- 
+}?>

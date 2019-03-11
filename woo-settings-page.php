@@ -56,38 +56,30 @@ class WooKlarnaInstantShoppingSettingsPage
     }
     function RenderKlarnaSettingsPage()
     {
-        ?>
-<div>
+        ?><div>
     <h2>Klarna Instant Shopping</h2>
     <form action="options.php" method="post">
         <?php settings_fields('woo-klarna-instant-shopping'); ?>
         <?php do_settings_sections('woo-klarna-instant-shopping'); ?>
-
         <input name="Submit" type="submit" value="<?php esc_attr_e('Save Changes'); ?>" />
     </form>
-</div>
-<? if (!get_option("woo-klarna-instant-shopping-buttonid")) {
-    ?>
-<form method="post">
+</div><?php if (!get_option("woo-klarna-instant-shopping-buttonid")) {
+    ?><form method="post">
     <?php if (isset($_POST["newbutton"])) {
         $buttonID = $this->CreateNewButton();
-
         update_option("woo-klarna-instant-shopping-buttonid", $buttonID);
     } ?>
     <button name="newbutton">Create new button</button>
     <?php echo get_option("woo-klarna-instant-shopping-buttonid") ?>
-</form>
-<?
+</form><?php
 }
 }
 function CreateNewButton()
 {
-
     return $this->buttonGenerator->generateButtonKey();
 }
 function plugin_admin_init()
 {
-
     register_setting('woo-klarna-instant-shopping', 'woo-klarna-instant-shopping', 'plugin_options_validate');
     add_settings_section('plugin_main', 'Main Settings', array($this, 'plugin_section_text'), 'woo-klarna-instant-shopping');
     add_settings_field('testmode', 'Testmode enabled', function () {
@@ -115,10 +107,7 @@ function plugin_setting_checkbox($key)
     if (!isset($options[$key])) {
         $options[$key] = "";
     }
-    ?>
-<input name='woo-klarna-instant-shopping[<?php echo $key ?>]' type='checkbox' value='1' <?php checked("1", $options[$key], true) ?> />
-<?php
-
+    ?><input name='woo-klarna-instant-shopping[<?php echo $key ?>]' type='checkbox' value='1' <?php checked("1", $options[$key], true) ?> /><?php
 }
 function plugin_setting_selectpage($key)
 {
@@ -134,7 +123,6 @@ function plugin_setting_selectpage($key)
         'post_status' => 'publish'
     );
     $pages = get_pages($args);
-
     echo '<select name="woo-klarna-instant-shopping[' . $key . ']">';
     foreach ($pages as $page) {
         $selected = ($options[$key] == $page->ID) ? "selected" : "";

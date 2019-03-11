@@ -9,7 +9,6 @@ Author URI: https://mnording.com
 Text Domain: woo-klarna-instant-shopping
 Domain Path: /languages
 */
-
 require 'vendor/autoload.php';
 require 'klarna-woo-translator.php';
 require 'woo-settings-page.php';
@@ -26,11 +25,6 @@ class KlarnaShoppingButton
     private $settingspage;
     function __construct()
     {
-        $this->wooTranslate = new KlarnaWooTranslator();
-        $this->settingspage = new WooKlarnaInstantShoppingSettingsPage();
-        $this->username = $this->settingspage->getmid();
-        $this->pass = $this->settingspage->getpass();
-        $this->baseUrl = $this->settingspage->getBaseUrl();
         add_action('woocommerce_init',  array($this, 'init'));
         add_action("woocommerce_before_add_to_cart_form", array($this, 'InitAndRender'));
         add_action('rest_api_init', function () {
@@ -47,6 +41,11 @@ class KlarnaShoppingButton
     }
     function init()
     {
+        $this->wooTranslate = new KlarnaWooTranslator();
+        $this->settingspage = new WooKlarnaInstantShoppingSettingsPage();
+        $this->username = $this->settingspage->getmid();
+        $this->pass = $this->settingspage->getpass();
+        $this->baseUrl = $this->settingspage->getBaseUrl();
         $this->logger  = new KlarnaInstantShoppingLogger($this->settingspage->shouldLogDebug(), wc_get_logger());
     }
     function enqueScripts()
@@ -92,7 +91,7 @@ class KlarnaShoppingButton
             "purchase_currency": "' . get_woocommerce_currency() . '",
             "locale": "' . str_replace('_', '-', get_locale()) . '",
             "merchant_urls": {
-            "terms": "' . rtrim(get_permalink(woocommerce_get_page_id("terms")), '/') /* TODO: rtrim pending klarna fix*/ . '",  
+            "terms": "' . get_permalink(woocommerce_get_page_id("terms")).'",  
             },
             "order_lines": [{
                 "type": "physical",
@@ -322,7 +321,7 @@ class KlarnaShoppingButton
         $shipping_methods = WC()->shipping->packages;
         foreach ($shipping_methods[0]['rates'] as $id => $shipping_method) {
             $active_methods[] = array(
-                'id'        => $shipping_method->method_id,
+                'id'        => $shipping_method->get_instance_id(),
                 'type'      => $shipping_method->method_id,
                 'provider'  => $shipping_method->method_id,
                 'name'      => $shipping_method->label,
