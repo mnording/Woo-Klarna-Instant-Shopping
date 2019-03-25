@@ -11,7 +11,7 @@ class KlarnaWooTranslator
                     "name" => $orderline->name,
                     "product_id" => json_decode($orderline->merchant_data)->prod_id,
                     "quantity" => $orderline->quantity,
-                    "price" => (int)($orderline->unit_price / 100),
+                    "price" => (float)($orderline->unit_price / 100),
                     "sku" => $orderline->reference
                 );
                 if (json_decode($orderline->merchant_data)->variation_id) {
@@ -30,7 +30,7 @@ class KlarnaWooTranslator
                 $newlineitems[] = array(
                     "name" => $orderline->name,
                     "quantity" => $orderline->quantity,
-                    "price" => (int)($orderline->unit_price / 100) - (int)($orderline->total_tax_amount / 100),
+                    "price" => (float)($orderline->unit_price / 100) - (float)($orderline->total_tax_amount / 100),
                     "instance_id" => $orderline->reference
                 );
             }
@@ -77,4 +77,5 @@ class KlarnaWooTranslator
         );
         return $adress;
     }
-}?>
+} 
+ 
